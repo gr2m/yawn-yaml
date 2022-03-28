@@ -293,11 +293,14 @@ function updateMap(ast, newJson, json, yaml, offset) {
  * @returns {string}
  */
 function replacePrimitive(node, value, yaml, offset) {
-  return (
-    yaml.substr(0, node.start_mark.pointer + offset) +
-    String(value) +
-    yaml.substring(node.end_mark.pointer + offset)
-  );
+  const before = yaml.substr(0, node.start_mark.pointer + offset);
+  const after = yaml.substring(node.end_mark.pointer + offset);
+
+  if (node.tag !== STR_TAG) {
+    return before + String(value) + after;
+  }
+
+  return before + '"' + String(value).replace(/"/g, '\\"') + '"' + after;
 }
 
 /*
