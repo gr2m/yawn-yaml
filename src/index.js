@@ -1,9 +1,15 @@
-'use strict';
+"use strict";
 
-import { EOL } from 'os';
-import {compose, serialize} from 'yaml-js';
-import {load, dump} from 'js-yaml';
-import {
+import { EOL } from "os";
+import YAMLJS from "yaml-js";
+import JSYAML from "js-yaml";
+import _ from "lodash";
+
+import YAWNError from "./error.js";
+
+const { compose, serialize } = YAMLJS;
+const { load, dump } = JSYAML;
+const {
   isArray,
   isString,
   isObject,
@@ -14,27 +20,24 @@ import {
   repeat,
   each,
   includes,
-  last
-} from 'lodash';
+  last,
+} = _;
 
-import YAWNError from './error.js';
+const NULL_TAG = "tag:yaml.org,2002:null";
+const STR_TAG = "tag:yaml.org,2002:str";
+const INT_TAG = "tag:yaml.org,2002:int";
+const FLOAT_TAG = "tag:yaml.org,2002:float";
+const MAP_TAG = "tag:yaml.org,2002:map";
+const SEQ_TAG = "tag:yaml.org,2002:seq";
 
-const NULL_TAG = 'tag:yaml.org,2002:null';
-const STR_TAG = 'tag:yaml.org,2002:str';
-const INT_TAG = 'tag:yaml.org,2002:int';
-const FLOAT_TAG = 'tag:yaml.org,2002:float';
-const MAP_TAG = 'tag:yaml.org,2002:map';
-const SEQ_TAG = 'tag:yaml.org,2002:seq';
-
-const SPACE = ' ';
-const DASH = '-';
+const SPACE = " ";
+const DASH = "-";
 
 // export default class YAWN {
 export default class YAWN {
-
   constructor(str) {
     if (!isString(str)) {
-      throw new TypeError('str should be a string');
+      throw new TypeError("str should be a string");
     }
 
     this.yaml = str;
@@ -45,7 +48,6 @@ export default class YAWN {
   }
 
   set json(newJson) {
-
     // if json is not changed do nothing
     if (isEqual(this.json, newJson)) {
       return;
@@ -54,7 +56,7 @@ export default class YAWN {
     const ast = compose(this.yaml);
 
     if (isUndefined(newJson)) {
-      this.yaml = '';
+      this.yaml = "";
       return;
     }
 
@@ -71,7 +73,7 @@ export default class YAWN {
       if (!isObject(newJson)) {
         this.yaml = replacePrimitive(ast, newYaml, this.yaml, 0);
 
-      // if node is not primitive
+        // if node is not primitive
       } else {
         this.yaml = replaceNode(ast, newYaml, this.yaml, 0);
       }
@@ -87,7 +89,6 @@ export default class YAWN {
 
       return;
     }
-
 
     // -------------------------------------------------------------------------
     // MAP_TAG
@@ -108,7 +109,7 @@ export default class YAWN {
     // Trim trailing whitespaces
     this.yaml = this.yaml
       .split(EOL)
-      .map(line=> line.replace(/[ \t]+$/, ''))
+      .map((line) => line.replace(/[ \t]+$/, ""))
       .join(EOL);
   }
 
@@ -122,14 +123,14 @@ export default class YAWN {
 
   getRemark(path) {
     const ast = compose(this.yaml);
-    let pathlist = path.split('.');
+    let pathlist = path.split(".");
     let node = getNode(ast, pathlist);
     return node && getNodeRemark(node, this.yaml);
   }
 
   setRemark(path, remark) {
     const ast = compose(this.yaml);
-    let pathlist = path.split('.');
+    let pathlist = path.split(".");
     let node = getNode(ast, pathlist);
     return !!node && !!(this.yaml = setNodeRemark(node, remark, this.yaml));
   }
@@ -141,7 +142,7 @@ export default class YAWN {
  * @param {any} - json
  * @returns {boolean}
  * @throws {YAWNError} - if json has weird type
-*/
+ */
 function getTag(json) {
   let tag = null;
 
@@ -160,7 +161,7 @@ function getTag(json) {
   } else if (isString(json)) {
     tag = STR_TAG;
   } else {
-    throw new YAWNError('Unknown type');
+    throw new YAWNError("Unknown type");
   }
   return tag;
 }
@@ -174,12 +175,17 @@ function getTag(json) {
  *
  * @returns {string}
  *
-*/
+ */
 function updateSeq(ast, newJson, yaml, offset) {
   let values = load(serialize(ast));
   let min = Math.min(values.length, newJson.length);
   for (let i = 0; i < min; i++) {
-    const newYaml = changeArrayElement(ast.value[i], cleanDump(newJson[i]), yaml, offset);
+    const newYaml = changeArrayElement(
+      ast.value[i],
+      cleanDump(newJson[i]),
+      yaml,
+      offset
+    );
     offset = offset + newYaml.length - yaml.length;
     yaml = newYaml;
   }
@@ -206,17 +212,17 @@ function updateSeq(ast, newJson, yaml, offset) {
  * @param {string} yaml
  * @returns {boolean}
  * @throws {YAWNError} - if json has weird type
-*/
+ */
 function updateMap(ast, newJson, json, yaml, offset) {
   // look for changes
-  each(ast.value, pair => {
+  each(ast.value, (pair) => {
     let [keyNode, valNode] = pair;
 
     // node is deleted
     if (isUndefined(newJson[keyNode.value])) {
-
       // TODO: can we use of the methods below?
-      const newYaml = yaml.substr(0, keyNode.start_mark.pointer + offset) +
+      const newYaml =
+        yaml.substr(0, keyNode.start_mark.pointer + offset) +
         yaml.substring(getNodeEndMark(valNode).pointer + offset);
       offset = offset + newYaml.length - yaml.length;
       yaml = newYaml;
@@ -228,7 +234,6 @@ function updateMap(ast, newJson, json, yaml, offset) {
 
     // primitive value has changed
     if (newValue !== value && !isArray(valNode.value)) {
-
       // replace the value node
       const newYaml = replacePrimitive(valNode, newValue, yaml, offset);
       offset = offset + newYaml.length - yaml.length;
@@ -240,18 +245,15 @@ function updateMap(ast, newJson, json, yaml, offset) {
 
     // non primitive value has changed
     if (!isEqual(newValue, value) && isArray(valNode.value)) {
-
       // array value has changed
       if (isArray(newValue)) {
-
         // recurse
         const newYaml = updateSeq(valNode, newValue, yaml, offset);
         offset = offset + newYaml.length - yaml.length;
         yaml = newYaml;
 
-      // map value has changed
+        // map value has changed
       } else {
-
         // recurse
         const newYaml = updateMap(valNode, newValue, value, yaml, offset);
         offset = offset + newYaml.length - yaml.length;
@@ -267,11 +269,10 @@ function updateMap(ast, newJson, json, yaml, offset) {
   });
 
   // look for new items to add
-  each(newJson, (value, key)=> {
-
+  each(newJson, (value, key) => {
     // item is new
     if (isUndefined(json[key])) {
-      let newValue = cleanDump({[key]: value});
+      let newValue = cleanDump({ [key]: value });
 
       const newYaml = insertAfterNode(ast, newValue, yaml, offset);
       offset = offset + newYaml.length - yaml.length;
@@ -290,11 +291,13 @@ function updateMap(ast, newJson, json, yaml, offset) {
  * @param yaml {string}
  *
  * @returns {string}
-*/
+ */
 function replacePrimitive(node, value, yaml, offset) {
-  return yaml.substr(0, node.start_mark.pointer + offset) +
+  return (
+    yaml.substr(0, node.start_mark.pointer + offset) +
     String(value) +
-    yaml.substring(node.end_mark.pointer + offset);
+    yaml.substring(node.end_mark.pointer + offset)
+  );
 }
 
 /*
@@ -305,14 +308,16 @@ function replacePrimitive(node, value, yaml, offset) {
  * @param yaml {string}
  *
  * @returns {string}
-*/
+ */
 function replaceNode(node, value, yaml, offset) {
   let indentedValue = indent(value, node.start_mark.column);
   let lineStart = node.start_mark.pointer - node.start_mark.column + offset;
 
-  return yaml.substr(0, lineStart) +
+  return (
+    yaml.substr(0, lineStart) +
     indentedValue +
-    yaml.substring(getNodeEndMark(node).pointer + offset);
+    yaml.substring(getNodeEndMark(node).pointer + offset)
+  );
 }
 
 /*
@@ -323,14 +328,16 @@ function replaceNode(node, value, yaml, offset) {
  * @param yaml {string}
  *
  * @returns {string}
-*/
+ */
 function insertAfterNode(node, value, yaml, offset) {
   let indentedValue = indent(value, node.start_mark.column);
 
-  return yaml.substr(0, getNodeEndMark(node).pointer + offset) +
+  return (
+    yaml.substr(0, getNodeEndMark(node).pointer + offset) +
     EOL +
     indentedValue +
-    yaml.substring(getNodeEndMark(node).pointer + offset);
+    yaml.substring(getNodeEndMark(node).pointer + offset)
+  );
 }
 
 /*
@@ -340,12 +347,14 @@ function insertAfterNode(node, value, yaml, offset) {
  * @param {string} yaml
  *
  * @returns {string}
-*/
+ */
 function removeArrayElement(node, yaml, offset) {
   let index = node.start_mark.pointer - node.start_mark.column - 1 + offset;
 
-  return yaml.substr(0, index) +
-      yaml.substring(getNodeEndMark(node).pointer + offset);
+  return (
+    yaml.substr(0, index) +
+    yaml.substring(getNodeEndMark(node).pointer + offset)
+  );
 }
 
 /*
@@ -356,7 +365,7 @@ function removeArrayElement(node, yaml, offset) {
  * @param {string} yaml
  *
  * @returns {string}
-*/
+ */
 function changeArrayElement(node, value, yaml, offset) {
   let indentedValue = indent(value, node.start_mark.column);
 
@@ -366,9 +375,11 @@ function changeArrayElement(node, value, yaml, offset) {
     index--;
   }
 
-  return yaml.substr(0, index + 2) +
-      indentedValue.substr(node.start_mark.column) +
-      yaml.substring(getNodeEndMark(node).pointer + offset);
+  return (
+    yaml.substr(0, index + 2) +
+    indentedValue.substr(node.start_mark.column) +
+    yaml.substring(getNodeEndMark(node).pointer + offset)
+  );
 }
 
 /*
@@ -377,7 +388,7 @@ function changeArrayElement(node, value, yaml, offset) {
  * @param {Node} ast
  *
  * @returns {Mark}
-*/
+ */
 function getNodeEndMark(ast) {
   if (isArray(ast.value) && ast.value.length) {
     let lastItem = last(ast.value);
@@ -399,12 +410,12 @@ function getNodeEndMark(ast) {
  * @param {integer} depth - can be negative also
  *
  * @returns {string}
-*/
+ */
 function indent(str, depth) {
   return str
     .split(EOL)
-    .filter(line => line)
-    .map(line => repeat(SPACE, depth) + line)
+    .filter((line) => line)
+    .map((line) => repeat(SPACE, depth) + line)
     .join(EOL);
 }
 
@@ -415,11 +426,11 @@ function indent(str, depth) {
  *
  * @returns {string}
  *
-*/
+ */
 function cleanDump(value) {
-  let yaml = dump(value).replace(/\n$/, '');
+  let yaml = dump(value).replace(/\n$/, "");
 
-  if (EOL !== '\n') {
+  if (EOL !== "\n") {
     yaml = yaml.replace(/\n/g, EOL);
   }
 
@@ -433,17 +444,20 @@ function cleanDump(value) {
  * @param {string} yaml
  *
  * @returns {string}
-*/
+ */
 function getNodeRemark(ast, yaml) {
   let index = getNodeEndMark(ast).pointer;
-  while (index < yaml.length && yaml[index] !== '#' && yaml[index] !== EOL) {
+  while (index < yaml.length && yaml[index] !== "#" && yaml[index] !== EOL) {
     ++index;
   }
 
   if (EOL === yaml[index] || index === yaml.length) {
-    return '';
+    return "";
   } else {
-    while (index < yaml.length && (yaml[index] === '#' || yaml[index] === ' ')) {
+    while (
+      index < yaml.length &&
+      (yaml[index] === "#" || yaml[index] === " ")
+    ) {
       ++index;
     }
     let end = index;
@@ -462,26 +476,27 @@ function getNodeRemark(ast, yaml) {
  * @param {string} yaml
  *
  * @returns {boolean}
-*/
+ */
 function setNodeRemark(ast, remark, yaml) {
   let index = getNodeEndMark(ast).pointer;
-  while (index < yaml.length && yaml[index] !== '#' && yaml[index] !== EOL) {
+  while (index < yaml.length && yaml[index] !== "#" && yaml[index] !== EOL) {
     ++index;
   }
 
   if (EOL === yaml[index] || index === yaml.length) {
-    return yaml.substr(0, index) + ' # ' + remark +
-        yaml.substring(index);
+    return yaml.substr(0, index) + " # " + remark + yaml.substring(index);
   } else {
-    while (index < yaml.length && (yaml[index] === '#' || yaml[index] === ' ')) {
+    while (
+      index < yaml.length &&
+      (yaml[index] === "#" || yaml[index] === " ")
+    ) {
       ++index;
     }
     let end = index;
     while (end < yaml.length && yaml[end] !== EOL) {
       ++end;
     }
-    return yaml.substr(0, index) + remark +
-        yaml.substring(end);
+    return yaml.substr(0, index) + remark + yaml.substring(end);
   }
 }
 
@@ -492,7 +507,7 @@ function setNodeRemark(ast, remark, yaml) {
  * @param {array} path
  *
  * @returns {Node}
-*/
+ */
 function getNode(ast, path) {
   if (path.length) {
     if (ast.tag === MAP_TAG) {

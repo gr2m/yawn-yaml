@@ -1,8 +1,9 @@
 {
-  "name": "yawn-yaml",
+  "name": "@gr2m/yawn-yaml",
   "version": "1.5.0",
+  "type": "module",
   "description": "YAML parser that preserves comments and styling",
-  "main": "dist/yawn.js",
+  "exports": "./src/index.js",
   "dependencies": {
     "js-yaml": "^3.4.2",
     "lodash": "^4.17.11",
@@ -19,32 +20,12 @@
     "mocha-eslint": "^1.0.0"
   },
   "scripts": {
-    "test": "mocha --compilers js:babel/register",
-    "browserify": "browserify --debug src/index.js -s YAWN -t [ babelify --sourceMapRelative . ] --outfile dist/yawn.js",
-    "commonjs": "babel src --out-dir cjs",
-    "prepublish": "npm run browserify && npm run commonjs"
+    "test": "mocha --compilers js:babel/register"
   },
-  "browserify": {
-    "transform": [
-      "browserify-global-shim"
-    ]
-  },
-  "browserify-global-shim": {
-    "yaml-js": "yaml",
-    "js-yaml": "jsyaml",
-    "lodash": "_"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/mohsen1/yawn.git"
-  },
+  "repository": "github:gr2m/yawn-yaml",
   "keywords": [
     "yaml"
   ],
   "author": "Mohsen Azimi <me@azimi.me>",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/mohsen1/yawn/issues"
-  },
-  "homepage": "https://github.com/mohsen1/yawn#readme"
+  "license": "MIT"
 }
