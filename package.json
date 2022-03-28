@@ -1,5 +1,8 @@
 {
   "name": "@gr2m/yawn-yaml",
+  "publishConfig": {
+    "access": "public"
+  },
   "version": "1.5.0",
   "type": "module",
   "description": "YAML parser that preserves comments and styling",
